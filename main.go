@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/rs/cors"
 )
 
 type Room struct {
@@ -39,6 +40,15 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 		rooms[roomID] = room
 	}
 	roomsMu.Unlock()
+
+	room.clientsMu.Lock()
+	numClients := len(room.clients)
+	room.clientsMu.Unlock()
+
+	if numClients >= 2 {
+		log.Println("Only two players per room")
+		return
+	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -105,11 +115,13 @@ func roomsHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 
+	corsMiddleware := cors.Default().Handler
+
 	r.HandleFunc("/ws", websocketHandler)
 	r.HandleFunc("/rooms", roomsHandler).Methods("GET")
 
 	log.Println("Starting WebSocket server on http://localhost:8080")
-	err := http.ListenAndServe(":8080", r)
+	err := http.ListenAndServe(":8080", corsMiddleware(r))
 	if err != nil {
 		log.Fatal("WebSocket server failed:", err)
 	}
