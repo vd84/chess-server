@@ -15,35 +15,78 @@ func calculateLegalMoves(board *Board) {
 				if piece.color == "white" {
 					modifier = -1
 				}
-				for i := 1; i <= 2; i++ {
-					moveToAdd := Move{To: Coordinates{X: x, Y: y + i*modifier}, From: Coordinates{X: x, Y: y}}
+
+				// Forward move
+				moveToAdd := Move{To: Coordinates{X: x, Y: y + modifier}, From: Coordinates{X: x, Y: y}}
+				if canAddMove(&moveToAdd, board) {
+					piece.legalMoves = append(piece.legalMoves, moveToAdd)
+				}
+
+				// Double forward move from starting position
+				if (y == 1 && piece.color == "black") || (y == 6 && piece.color == "white") {
+					moveToAdd := Move{To: Coordinates{X: x, Y: y + 2*modifier}, From: Coordinates{X: x, Y: y}}
 					if canAddMove(&moveToAdd, board) {
 						piece.legalMoves = append(piece.legalMoves, moveToAdd)
 					}
 				}
-				// Calculate legal moves for pawn
-				// Add the moves to the piece's legalMoves slice
-				// ...
+
+				// Capture moves
+				captureMoves := []Coordinates{{X: x - 1, Y: y + modifier}, {X: x + 1, Y: y + modifier}}
+				for _, captureMove := range captureMoves {
+					if isValidPosition(captureMove.X, captureMove.Y) {
+						moveToAdd := Move{To: captureMove, From: Coordinates{X: x, Y: y}}
+						if canCaptureMove(&moveToAdd, board) {
+							piece.legalMoves = append(piece.legalMoves, moveToAdd)
+						}
+					}
+				}
+
 			case Rook:
-				// Calculate legal moves for rook
-				// Add the moves to the piece's legalMoves slice
-				// ...
+				// Calculate legal moves for rook in horizontal and vertical directions
+				addHorizontalVerticalMoves(piece, x, y, board)
+
 			case Knight:
 				// Calculate legal moves for knight
-				// Add the moves to the piece's legalMoves slice
-				// ...
+				knightMoves := []Coordinates{
+					{X: x + 1, Y: y + 2}, {X: x + 2, Y: y + 1},
+					{X: x + 2, Y: y - 1}, {X: x + 1, Y: y - 2},
+					{X: x - 1, Y: y - 2}, {X: x - 2, Y: y - 1},
+					{X: x - 2, Y: y + 1}, {X: x - 1, Y: y + 2},
+				}
+				for _, knightMove := range knightMoves {
+					if isValidPosition(knightMove.X, knightMove.Y) {
+						moveToAdd := Move{To: knightMove, From: Coordinates{X: x, Y: y}}
+						if canCaptureMove(&moveToAdd, board) {
+							piece.legalMoves = append(piece.legalMoves, moveToAdd)
+						}
+					}
+				}
+
 			case Bishop:
-				// Calculate legal moves for bishop
-				// Add the moves to the piece's legalMoves slice
-				// ...
+				// Calculate legal moves for bishop in diagonal directions
+				addDiagonalMoves(piece, x, y, board)
+
 			case Queen:
-				// Calculate legal moves for queen
-				// Add the moves to the piece's legalMoves slice
-				// ...
+				// Calculate legal moves for queen in all directions
+				addHorizontalVerticalMoves(piece, x, y, board)
+				addDiagonalMoves(piece, x, y, board)
+
 			case King:
 				// Calculate legal moves for king
-				// Add the moves to the piece's legalMoves slice
-				// ...
+				kingMoves := []Coordinates{
+					{X: x + 1, Y: y}, {X: x + 1, Y: y + 1},
+					{X: x, Y: y + 1}, {X: x - 1, Y: y + 1},
+					{X: x - 1, Y: y}, {X: x - 1, Y: y - 1},
+					{X: x, Y: y - 1}, {X: x + 1, Y: y - 1},
+				}
+				for _, kingMove := range kingMoves {
+					if isValidPosition(kingMove.X, kingMove.Y) {
+						moveToAdd := Move{To: kingMove, From: Coordinates{X: x, Y: y}}
+						if canCaptureMove(&moveToAdd, board) {
+							piece.legalMoves = append(piece.legalMoves, moveToAdd)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -88,6 +131,93 @@ func getRandomLegalMove(board *Board) *Move {
 		}
 	}
 	panic("Could not find any legal moves.")
+}
+
+func addHorizontalVerticalMoves(piece *Piece, x, y int, board *Board) {
+	// Add legal moves in horizontal direction
+	for i := x + 1; i < 8; i++ {
+		moveToAdd := Move{To: Coordinates{X: i, Y: y}, From: Coordinates{X: x, Y: y}}
+		if canAddMove(&moveToAdd, board) {
+			piece.legalMoves = append(piece.legalMoves, moveToAdd)
+		}
+		if board.pos[y][i].piece.pieceType != Empty {
+			break
+		}
+	}
+
+	for i := x - 1; i >= 0; i-- {
+		moveToAdd := Move{To: Coordinates{X: i, Y: y}, From: Coordinates{X: x, Y: y}}
+		if canAddMove(&moveToAdd, board) {
+			piece.legalMoves = append(piece.legalMoves, moveToAdd)
+		}
+		if board.pos[y][i].piece.pieceType != Empty {
+			break
+		}
+	}
+
+	// Add legal moves in vertical direction
+	for i := y + 1; i < 8; i++ {
+		moveToAdd := Move{To: Coordinates{X: x, Y: i}, From: Coordinates{X: x, Y: y}}
+		if canAddMove(&moveToAdd, board) {
+			piece.legalMoves = append(piece.legalMoves, moveToAdd)
+		}
+		if board.pos[i][x].piece.pieceType != Empty {
+			break
+		}
+	}
+
+	for i := y - 1; i >= 0; i-- {
+		moveToAdd := Move{To: Coordinates{X: x, Y: i}, From: Coordinates{X: x, Y: y}}
+		if canAddMove(&moveToAdd, board) {
+			piece.legalMoves = append(piece.legalMoves, moveToAdd)
+		}
+		if board.pos[i][x].piece.pieceType != Empty {
+			break
+		}
+	}
+}
+
+func addDiagonalMoves(piece *Piece, x, y int, board *Board) {
+	// Add legal moves in diagonal directions
+	for i, j := x+1, y+1; i < 8 && j < 8; i, j = i+1, j+1 {
+		moveToAdd := Move{To: Coordinates{X: i, Y: j}, From: Coordinates{X: x, Y: y}}
+		if canAddMove(&moveToAdd, board) {
+			piece.legalMoves = append(piece.legalMoves, moveToAdd)
+		}
+		if board.pos[j][i].piece.pieceType != Empty {
+			break
+		}
+	}
+
+	for i, j := x-1, y+1; i >= 0 && j < 8; i, j = i-1, j+1 {
+		moveToAdd := Move{To: Coordinates{X: i, Y: j}, From: Coordinates{X: x, Y: y}}
+		if canAddMove(&moveToAdd, board) {
+			piece.legalMoves = append(piece.legalMoves, moveToAdd)
+		}
+		if board.pos[j][i].piece.pieceType != Empty {
+			break
+		}
+	}
+
+	for i, j := x+1, y-1; i < 8 && j >= 0; i, j = i+1, j-1 {
+		moveToAdd := Move{To: Coordinates{X: i, Y: j}, From: Coordinates{X: x, Y: y}}
+		if canAddMove(&moveToAdd, board) {
+			piece.legalMoves = append(piece.legalMoves, moveToAdd)
+		}
+		if board.pos[j][i].piece.pieceType != Empty {
+			break
+		}
+	}
+
+	for i, j := x-1, y-1; i >= 0 && j >= 0; i, j = i-1, j-1 {
+		moveToAdd := Move{To: Coordinates{X: i, Y: j}, From: Coordinates{X: x, Y: y}}
+		if canAddMove(&moveToAdd, board) {
+			piece.legalMoves = append(piece.legalMoves, moveToAdd)
+		}
+		if board.pos[j][i].piece.pieceType != Empty {
+			break
+		}
+	}
 }
 
 func canAddMove(move *Move, board *Board) bool {
