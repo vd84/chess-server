@@ -235,3 +235,13 @@ func isEmptyTile(tile *Tile) bool {
 func getTileByCoordinates(coordinates *Coordinates, board *Board) *Tile {
 	return &board.pos[coordinates.X][coordinates.Y]
 }
+
+func canCaptureMove(move *Move, board *Board) bool {
+	to := move.To
+	tile := getTileByCoordinates(&to, board)
+	return coordinatesIsInBound(&to) && !isEmptyTile(tile) && tile.piece.color != board.pos[move.From.Y][move.From.X].piece.color
+}
+
+func isValidPosition(x, y int) bool {
+	return x >= 0 && x < 8 && y >= 0 && y < 8
+}
